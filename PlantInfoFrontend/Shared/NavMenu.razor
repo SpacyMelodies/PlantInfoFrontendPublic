@@ -1,0 +1,50 @@
+﻿<div class="top-row navbar navbar-dark">
+    <div class="container-fluid">
+        <a href=""><img alt="PlantInfo" src="/images/logo.png" width="180"/></a>
+        <button title="Navigation menu" class="navbar-toggler" @onclick="ToggleNavMenu">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+    </div>
+    <div class="@NavMenuCssClass nav-scrollable d-none" id="desktop" @onclick="ToggleNavMenu">
+        <nav>
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
+                    <span class="oi oi-home" aria-hidden="true"></span> Home
+                </NavLink>
+            </div>
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="info">
+                    <span class="oi oi-plus" aria-hidden="true"></span> Change Info
+                </NavLink>
+            </div>
+        </nav>
+    </div>
+</div>
+
+<div class="@NavMenuCssClass nav-scrollable" id="mobile" @onclick="ToggleNavMenu">
+    <nav>
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
+                <span class="oi oi-home" aria-hidden="true"></span> Home
+            </NavLink>
+        </div>
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="info">
+                <span class="oi oi-plus" aria-hidden="true"></span> Change Info
+            </NavLink>
+        </div>
+    </nav>
+</div>
+
+@code {
+
+    //look up the flex-column class and override it for desktop
+    private bool collapseNavMenu = true;
+
+    private string? NavMenuCssClass => collapseNavMenu ? "collapse" : null;
+
+    private void ToggleNavMenu()
+    {
+        collapseNavMenu = !collapseNavMenu;
+    }
+}

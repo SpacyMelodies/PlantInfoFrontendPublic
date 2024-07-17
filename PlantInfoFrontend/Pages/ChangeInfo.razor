@@ -1,0 +1,102 @@
+﻿@page "/info"
+@using System.Text.Json;
+@inject NavigationManager UriHelper;
+@inject IJSRuntime JsRuntime
+
+<PageTitle>Change Information | PlantInfo</PageTitle>
+<div class="container-fluid g-0">
+    <h2 class="fs-1 info">Change Information</h2>
+@* Using JS to create onclick events for div.plantButton which changes the dropdown selection based on id *@
+    <div class="plant-selection">
+        <h3>Plant Selection</h3>
+        <hr/>
+        <label for="plants" hidden>Choose your Plant: </label>
+        <select name="plants" id="plants" @onchange="SetPlant" hidden>
+            <option value="Brazilian Joy Weed">Brazilian Joy Weed</option>
+            <option value="Pothos">Pothos</option>
+            <option value="Snake Plant">Snake Plant</option>
+            <option value="Birds of Paradise">Birds of Paradise</option>
+            <option value="Orchid">Orchid</option>
+        </select>
+        @* Currently using HTML and CSS trickery to keep selected plant button active after click (otherwise we lose
+            the active class when the button loses focus). This trick avoids jQuery but allows for the APPEARANCE
+            of multiple selections - only the last selection will be posted. Click the button a second time to 
+            remove active state. This is just a time aand effort saver~
+        *@
+        <div class="plant-options row">
+            <div class="option col">
+                <img src="/images/brazilian-joyweed.png" class="row" height="200px" width="200px"/>
+                <label for="activate-button-1">
+                <input type="checkbox" id="activate-button-1" class="activate-button" />
+                <div id="0" class="plantButton row btn btn-outline-success">Brazilian Joyweed</div>
+                </label>
+            </div>
+            <div class="option col">
+                <img src="/images/pothos.png" class="row" height="200px" width="200px" />
+                <label for="activate-button-2"
+                <input type="checkbox" id="activate-button-2" class="activate-button" />
+                <div id="1" class="plantButton row btn btn-outline-success">Pothos</div>
+                </label>
+            </div>
+            <div class="option col"> 
+                <img src="/images/snake-plant.png" class="row" height="200px" width="200px" />
+                <label for="activate-button-3">
+                <input type="checkbox" id="activate-button-3" class="activate-button" />
+                <div id="2" class="plantButton row btn btn-outline-success">Snake Plant</div>
+                </label>
+            </div>
+            <div class="option col">
+                <img src="/images/bird-of-paradise.png" class="row" height="200px" width="200px" />
+                <label for="activate-button-4">
+                <input type="checkbox" id="activate-button-4" class="activate-button" />
+                <div id="3" class="plantButton row btn btn-outline-success">Bird of Paradise</div>
+                </label>
+            </div>
+            <div class="option col">
+                <img src="/images/orchid.png" class="row" height="200px" width="200px" />
+                <label for="activate-button-5">
+                <input type="checkbox" id="activate-button-5" class="activate-button"/>
+                <div id="4" class="plantButton row btn btn-outline-success">Orchid</div>
+                </label>
+            </div>
+        </div>
+    </div>
+    <div class="user-info">
+        <h3>User Information</h3>
+        <hr />
+        <label for="email">E-mail (for plant alerts):</label>
+        <input type="email" class="form-control" required @bind="Email"/>
+    </div>
+    <button class="btn btn-success form-submit" type="submit" @onclick="PostUserInfoAsync">Save</button>
+</div>
+
+
+@code {
+
+    protected override async void OnAfterRender(bool firstRender) // call JS runtime to change dropdown selection on button click
+    {
+        await JsRuntime.InvokeVoidAsync("OnPlantChange");
+    }
+
+    public string? Email { get; set; } = "";
+    public string? Plant { get; set; } = "Brazilian Joy Weed";
+
+    public void SetPlant(ChangeEventArgs e) //sets the Plant property to the value in the dropdown
+    {
+        Plant = e.Value.ToString();
+    }
+
+    string apiURL = ""; // API URL GOES HERE;
+
+    private async Task PostUserInfoAsync() //sets the users Plant and Email to given values upon button press
+    {
+        var formData = new MultipartFormDataContent();
+        formData.Add(new StringContent(Email), "userEmail");
+        formData.Add(new StringContent(Plant), "plant");
+        HttpClient client = new HttpClient();
+        HttpResponseMessage response = await client.PostAsync(apiURL + "api/PlantInfo/SetUserValues", formData);
+        client.Dispose();
+        using var responseString = await response.Content.ReadAsStreamAsync();
+        string result = response.Content.ReadAsStringAsync().Result;
+    }
+}

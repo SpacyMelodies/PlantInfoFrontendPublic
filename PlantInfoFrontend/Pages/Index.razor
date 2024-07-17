@@ -1,0 +1,168 @@
+﻿@page "/"
+@using System.Text.Json;
+@using OpenAI
+@using OpenAI.Chat
+@using OpenAI.Models
+
+<PageTitle>PlantInfo</PageTitle>
+
+<div class="container-fluid g-0">
+    <div class="row banner g-0">
+        <img src="/images/banner.jpg" class="banner"/>
+        <h2 class="overlay-text fs-1">Helping you care for your plants</h2>
+        <div class="overlay-text popout">
+            <div class="popout-container">
+                <p class="p-2">Try Planty, your AI Plant Assistant</p>
+                <div class="arrow-right"></div>
+            </div>
+            <a class="fs-1">🌱</a>
+        </div>
+    </div>
+    <div class="row">
+        @foreach (var thing in plantList)
+        {
+            <div class="plant-info col-lg-6">
+                <h3>@thing.PlantName</h3>
+                <div class="row moisture-level">
+                    <h4>Moisture Level</h4>
+                    <div class="col">
+                        <img src="/images/plant-low.png" height="95px" width="95px" />
+                        <p class="text-center">Low</p>
+                        <p class="text-center">@thing.LowMoisture%</p>
+                    </div>
+                    <div class="col">
+                        <img src="/images/plant-current.png" height="95px" width="95px" />
+                        <p class="text-center">Current</p>
+                        <p class="text-center">@currentLevel%</p>
+                    </div>
+                    <div class="col">
+                        <img src="/images/plant-ideal.png" height="95px" width="95px" />
+                        <p class="text-center">Ideal</p>
+                        <p class="text-center">@thing.IdealMoisture%</p>
+                    </div>
+                    <button class="btn btn-success" @onclick="GetCurrentLevel">Update</button>
+                </div>
+            </div>
+        }
+        <br />
+    <div id="plant-ai" class="col-lg-6">
+        <h3>Planty 🌱</h3>
+    <div class="chatbot-container">
+        @*This isn't working*@
+        <div class="chat-messages">
+            @foreach(var message in messages)
+            {
+                        if (messages.IndexOf(message) % 2 == 0 || messages.IndexOf(message) == 0)
+                        {
+                            <div class="text-bubble">Lorem ipsum lorem ipsum lorem ipsum lorem ipsum</div>
+                            <br />
+                            <br />
+                        }
+                        else
+                        {
+                            <div class="text-bubble2">Lorem ipsum lorem ipsum lorem ipsum lorem upsum</div>
+                            <br />
+                            <br />
+                        }
+                    }
+            
+            
+        </div>
+        <div class="chat-input">
+                <input type="text" class="form-control" placeholder="🌱 Hello! I'm Planty" />
+                <button disabled="@IsFetchingResponse" @onclick="@FillChat" class="btn btn-success">Send</button>
+        </div>
+    </div>
+    </div>
+    </div>
+</div>
+
+@code {
+    OpenAIClient api = new OpenAIClient(OpenAIAuthentication.LoadFromEnv());
+    static string UserInput { get; set; } = string.Empty;
+    static List<Message> AImessages = new List<Message>
+            {
+            new Message(Role.System, "your name is Planty! You are  houseplant expert tasked with assisting users on house plant care and upkeep. You work for PlantInfo, a soil moisture IoT device company and you should always assume the user has the device.  If the user mentions anything about soil moisture, or your answer contains soil moisture information of any kind, let the user know to consult the soil moisture levels that their PlantInfo device is reading. Your main goal is to keep answers as concise as possible while giving users the information they need. I want you to greet the users in a empathetic, mild-mannered and fun tone. And always let the user know to consult with guides if they notice their plant has leaf blight, leaf damage or pests. keep the answers short, sweet and kind.  instruct the user that you are meant to only be a helpful companion to their plant care, as the goal of PlantInfo is to keep users engaged with their plant as much as possible. only introduce yourself when the user asks, else assume they have talked to you before")
+            };
+
+    List<string> messages = new List<string> { };
+
+    //Idk what this is doing
+    string imageSource = "C:\\Users\\mitch\\source\\repos\\PlantInfoFrontend\\PlantInfoFrontend\\wwwroot\\logo (1).png";
+
+    bool IsFetchingResponse = false;
+    public class PlantInfo
+    {
+        public string? PlantName { get; set; }
+        public int IdealMoisture { get; set; }
+        public int LowMoisture { get; set; }
+        public string Email { get; set; }
+    }
+
+    string apiURL = ""; // API URL GOES HERE;
+
+    private IEnumerable<PlantInfo> plantList = Array.Empty<PlantInfo>();
+    private PlantInfo parsedPlant = new PlantInfo();
+    private double currentLevel = 0;
+
+    private async Task GetPlantInfoAsync() //calls the database API to get static values
+    {
+        HttpClient client = new HttpClient();
+        HttpResponseMessage response = await client.GetAsync(apiURL + "api/PlantInfo/GetPlantData");
+        client.Dispose();
+        using var responseString = await response.Content.ReadAsStreamAsync();
+        plantList = await JsonSerializer.DeserializeAsync<IEnumerable<PlantInfo>>(responseString);
+    }
+
+    private async Task GetCurrentLevel() // gets the current moisture level of the plant and posts it to the page. Emails user if level is too low
+    {
+        HttpClient client = new HttpClient();
+        HttpResponseMessage response = await client.GetAsync(apiURL + "api/Mail/CheckLevels");
+        client.Dispose();
+        bool isCurrent = int.TryParse(await response.Content.ReadAsStringAsync(), out int readLevel);
+        currentLevel = Math.Round(((636 - readLevel) / 4.58), 2, MidpointRounding.AwayFromZero);
+    }
+
+    private async Task GetCurrentLevelNoEmail() // gets the current moisture level of the plant and posts it to the page, does not send email
+    {
+        HttpClient client = new HttpClient();
+        HttpResponseMessage response = await client.GetAsync(apiURL + "api/PlantMonitor/GetCurrentLevel");
+        client.Dispose();
+        bool isCurrent = int.TryParse(await response.Content.ReadAsStringAsync(), out int readLevel);
+
+        //soil moisture percentage formula where 636 = 0% total moisture and 4.58 indidcates
+        // 1% change in moisture level (growing towards 0)
+        // formula is (0% total moisture analog value - current analog read val) / 1% change value
+        currentLevel = Math.Round(((636 - readLevel) / 4.58), 2, MidpointRounding.AwayFromZero);
+    }
+
+    private async Task FillChat()
+    {
+        if (UserInput == string.Empty)
+        {
+            return;
+        }
+        AImessages.Add(new Message(Role.User, UserInput));
+        ChatRequest chatRequest = new ChatRequest(AImessages, Model.GPT4_Turbo);
+        IsFetchingResponse = true;
+        messages.Add(UserInput);
+        messages.Add(await GetAIResponse(chatRequest));
+        UserInput = string.Empty;
+        IsFetchingResponse = !IsFetchingResponse;
+        // call AI logic
+    }
+
+    private async Task<string> GetAIResponse(ChatRequest chatRequest)
+    {
+        var response = await api.ChatEndpoint.GetCompletionAsync(chatRequest);
+        return response.FirstChoice.ToString();
+    }
+
+    protected override async Task OnInitializedAsync() //called upon load
+    {
+        await this.GetPlantInfoAsync();
+        await this.GetCurrentLevelNoEmail();
+    }
+}
+
+        
